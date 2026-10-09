@@ -1,0 +1,810 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Uiua // The Glyphic Array Synthesizer & Harmonic Tensor Lab</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090a0f;
+      --card-bg: #10121a;
+      --border: #1f2333;
+      --accent: #5ef1d2;
+      --accent-dim: #256658;
+      --glow: rgba(94, 241, 210, 0.25);
+      --amber: #f59e0b;
+      --magenta: #ec4899;
+      --purple: #a855f7;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: #e2e8f0;
+      font-family: 'Space Grotesk', sans-serif;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(94, 241, 210, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 85% 80%, rgba(168, 85, 247, 0.05) 0%, transparent 40%),
+        linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+    }
+
+    .mono {
+      font-family: 'Fira Code', monospace;
+    }
+
+    .glyph-btn {
+      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .glyph-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 14px -2px var(--glow);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .glyph-btn:active {
+      transform: translateY(1px);
+    }
+
+    .crt-screen::before {
+      content: " ";
+      display: block;
+      position: absolute;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      z-index: 10;
+      background-size: 100% 3px, 6px 100%;
+      pointer-events: none;
+      opacity: 0.8;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090a0f;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1f2333;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #2e354f;
+    }
+
+    .pulsing-dot {
+      animation: pulseGlow 2.5s infinite;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.3; transform: scale(0.95); }
+      50% { opacity: 1; transform: scale(1.08); filter: drop-shadow(0 0 8px var(--accent)); }
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-300 flex flex-col selection:bg-teal-500/30 selection:text-teal-200">
+
+  <!-- TOP HEADER / NAV -->
+  <header class="border-b border-[#1f2333] bg-[#0c0e14]/90 backdrop-blur-md sticky top-0 z-40 px-5 py-3">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 rounded border border-teal-500/40 bg-teal-950/30 flex items-center justify-center font-bold text-teal-400 mono text-lg shadow-[0_0_15px_rgba(94,241,210,0.2)]">
+          ⊞
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-sm font-bold tracking-wider uppercase text-white">Uiua Resonance Lab</h1>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-teal-950 border border-teal-500/30 text-teal-300 mono font-semibold">TACIT ARRAY v0.14</span>
+          </div>
+          <p class="text-[11px] text-slate-400">An interactive computational artifact in a stack-oriented array glyph system</p>
+        </div>
+      </div>
+
+      <!-- Quick stats & Audio Monitor Toggle -->
+      <div class="flex items-center space-x-3 text-xs mono">
+        <div class="hidden sm:flex items-center space-x-2 px-3 py-1.5 rounded bg-[#131622] border border-[#23273c]">
+          <span class="text-slate-500">ENGINE:</span>
+          <span class="text-teal-400 font-medium">Point-Free Polyphony</span>
+        </div>
+        <button id="btn-master-mute" class="flex items-center space-x-2 px-3 py-1.5 rounded bg-emerald-950/40 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/40 transition">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="mute-label">AUDIO DSP: READY</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN INTERFACE -->
+  <main class="max-w-7xl mx-auto w-full p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow">
+    
+    <!-- LEFT PANEL: CODEPAD & GLYPH MATRIX (7 COLS) -->
+    <div class="lg:col-span-7 flex flex-col space-y-4">
+      
+      <!-- ARTIFACT PRESET SELECTOR -->
+      <div class="bg-[#10121a] border border-[#1f2333] rounded-xl p-4 shadow-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+          <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+            Selected Uiua Glyphic Artifacts
+          </span>
+          <span class="text-[11px] text-slate-400 mono">Stack: Right-to-Left / Array-First</span>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+          <button class="preset-btn px-3 py-2 rounded-lg bg-teal-950/40 border border-teal-500/50 text-teal-200 text-left font-medium transition hover:border-teal-400" data-preset="cymatics">
+            <div class="text-[10px] text-teal-400 mono">01 // ⊞○∿</div>
+            <div class="truncate font-semibold">Cymatic Lattice</div>
+          </button>
+          <button class="preset-btn px-3 py-2 rounded-lg bg-[#141824] border border-[#23273c] text-slate-300 text-left font-medium transition hover:border-slate-500" data-preset="subharmonic">
+            <div class="text-[10px] text-amber-400 mono">02 // ⍚×ⁿ○</div>
+            <div class="truncate font-semibold">Fibonacci Bells</div>
+          </button>
+          <button class="preset-btn px-3 py-2 rounded-lg bg-[#141824] border border-[#23273c] text-slate-300 text-left font-medium transition hover:border-slate-500" data-preset="torus">
+            <div class="text-[10px] text-purple-400 mono">03 // ⇡⇌◰∺</div>
+            <div class="truncate font-semibold">Phase Toroid</div>
+          </button>
+          <button class="preset-btn px-3 py-2 rounded-lg bg-[#141824] border border-[#23273c] text-slate-300 text-left font-medium transition hover:border-slate-500" data-preset="stochastic">
+            <div class="text-[10px] text-pink-400 mono">04 // ⍥▽♭⌕</div>
+            <div class="truncate font-semibold">Cellular Dilation</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- CODE CANVAS / WORKBENCH -->
+      <div class="bg-[#10121a] border border-[#1f2333] rounded-xl p-4 shadow-xl flex flex-col flex-grow">
+        <div class="flex items-center justify-between pb-2 mb-2 border-b border-[#1b1f2e]">
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-teal-400 inline-block shadow-[0_0_8px_rgba(94,241,210,0.8)]"></span>
+            <span class="text-xs uppercase tracking-wider text-slate-300 font-semibold">Tacit Program Buffer</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button id="btn-eval" class="px-3 py-1.5 rounded-md bg-teal-400 text-slate-950 font-bold mono text-xs hover:bg-teal-300 active:scale-95 transition flex items-center space-x-1.5 shadow-[0_0_15px_rgba(94,241,210,0.4)]">
+              <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+              <span>EVALUATE ⊞</span>
+            </button>
+            <button id="btn-play-synth" class="px-3 py-1.5 rounded-md bg-purple-600/80 hover:bg-purple-500 text-white font-bold mono text-xs active:scale-95 transition flex items-center space-x-1.5">
+              <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+              <span>SYNTHESIZE</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- CODE INPUT -->
+        <div class="relative mb-3">
+          <textarea id="uiua-code" rows="4" spellcheck="false" class="w-full bg-[#0a0c12] border border-[#1e2336] rounded-lg p-3 text-sm mono text-teal-300 font-medium focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400/50 resize-none transition tracking-wide leading-relaxed" placeholder="Type or click glyphs below..."></textarea>
+          <div id="eval-status" class="absolute bottom-2.5 right-3 text-[10px] mono text-slate-400 flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-teal-400"></span>
+            <span>STACK SYNCED</span>
+          </div>
+        </div>
+
+        <!-- QUICK GLYPH PALETTE -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] mono uppercase text-slate-400">Click to insert Uiua glyph:</span>
+            <span class="text-[10px] text-slate-400">Hover for stack signature</span>
+          </div>
+          <div class="grid grid-cols-8 sm:grid-cols-12 gap-1.5" id="glyph-bar">
+            <!-- Programmatic glyph buttons generated below -->
+          </div>
+        </div>
+
+        <!-- EXPLANATION / ANATOMY PANEL -->
+        <div class="mt-4 pt-3 border-t border-[#1b1f2e] text-xs text-slate-400 leading-relaxed" id="glyph-explanation">
+          <span class="text-teal-300 font-semibold mono">Uiua Primer:</span> Array-oriented, purely tacit (point-free). Functions operate on an implicit stack where primitives compose like mathematical lenses. `⊞` (table) lifts operations to orthogonal tensor products; `○` computes transcendental sine; `∿` drives harmonic phases.
+        </div>
+      </div>
+
+      <!-- ARTIFACT TIMELINE SCRUBBER / MODULATORS -->
+      <div class="bg-[#10121a] border border-[#1f2333] rounded-xl p-4 shadow-xl">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            Dynamic Hyper-Parameters (T-Vector)
+          </span>
+          <span class="text-xs mono text-amber-300" id="time-val">t = 0.000 rad</span>
+        </div>
+        <div class="space-y-3">
+          <div>
+            <div class="flex justify-between text-[11px] mono text-slate-400 mb-1">
+              <span>Carrier Frequency (Hz) / Fundamental [ω]</span>
+              <span id="freq-readout" class="text-teal-400">220.00 Hz</span>
+            </div>
+            <input type="range" id="param-freq" min="55" max="880" value="220" step="0.5" class="w-full accent-teal-400 h-1.5 bg-[#1b1f2e] rounded-lg appearance-none cursor-pointer">
+          </div>
+          <div>
+            <div class="flex justify-between text-[11px] mono text-slate-400 mb-1">
+              <span>Tensor Dimension Resolution [N × N]</span>
+              <span id="res-readout" class="text-purple-400">64 × 64 cells</span>
+            </div>
+            <input type="range" id="param-res" min="24" max="128" value="64" step="8" class="w-full accent-purple-400 h-1.5 bg-[#1b1f2e] rounded-lg appearance-none cursor-pointer">
+          </div>
+          <div>
+            <div class="flex justify-between text-[11px] mono text-slate-400 mb-1">
+              <span>Phase Modulation Velocity [∂t]</span>
+              <span id="vel-readout" class="text-pink-400">1.00×</span>
+            </div>
+            <input type="range" id="param-speed" min="0.1" max="4.0" value="1.0" step="0.05" class="w-full accent-pink-400 h-1.5 bg-[#1b1f2e] rounded-lg appearance-none cursor-pointer">
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT PANEL: 2D TENSOR FIELD & STACK VISUALIZER (5 COLS) -->
+    <div class="lg:col-span-5 flex flex-col space-y-4">
+
+      <!-- CRT / RASTER DISPLAY -->
+      <div class="bg-[#10121a] border border-[#1f2333] rounded-xl p-4 shadow-xl flex flex-col">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="text-xs uppercase tracking-wider text-slate-300 font-semibold">Tensor Spatial Manifest</span>
+          </div>
+          <div class="flex items-center space-x-2 text-[10px] mono">
+            <span class="px-2 py-0.5 rounded bg-[#171b28] text-slate-400 border border-[#23293e]" id="fps-counter">60 FPS</span>
+            <span class="px-2 py-0.5 rounded bg-teal-950/60 text-teal-300 border border-teal-500/30" id="matrix-shape">[64 64]</span>
+          </div>
+        </div>
+
+        <!-- Canvas Container -->
+        <div class="relative w-full aspect-square rounded-lg overflow-hidden bg-black border border-[#212638] crt-screen flex items-center justify-center">
+          <canvas id="tensorCanvas" class="w-full h-full block"></canvas>
+          
+          <div class="absolute bottom-2 left-2 text-[10px] mono text-teal-400/80 bg-black/70 px-2 py-1 rounded backdrop-blur border border-teal-500/20 pointer-events-none">
+            <span id="display-mode">FIELD: ⊞ (○ + ∿)</span>
+          </div>
+        </div>
+
+        <!-- Audio Oscilloscope overlay bar -->
+        <div class="mt-3">
+          <div class="flex justify-between items-center text-[10px] mono text-slate-400 mb-1">
+            <span>Harmonic Waveform Slice [∿]</span>
+            <span id="harmonic-peak" class="text-emerald-400">Amp: 0.82</span>
+          </div>
+          <div class="h-14 w-full bg-[#090b10] rounded border border-[#1f2436] overflow-hidden">
+            <canvas id="scopeCanvas" class="w-full h-full block"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- DYNAMIC STACK INSPECTOR -->
+      <div class="bg-[#10121a] border border-[#1f2333] rounded-xl p-4 shadow-xl flex-grow flex flex-col">
+        <div class="flex items-center justify-between mb-3 border-b border-[#1b1f2e] pb-2">
+          <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+            Active Tacit Stack State
+          </span>
+          <span class="text-[11px] mono text-teal-400" id="stack-depth">Depth: 3 items</span>
+        </div>
+
+        <div id="stack-items" class="space-y-2 overflow-y-auto max-h-[220px] pr-1 flex-grow">
+          <!-- Stack items injected here -->
+        </div>
+
+        <!-- FOOTER PHILOSOPHY / WHY UIUA -->
+        <div class="mt-4 pt-3 border-t border-[#1b1f2e] text-[11px] text-slate-400 flex items-center justify-between">
+          <div class="flex items-center space-x-1.5 text-slate-400">
+            <span>Concept:</span>
+            <span class="text-slate-300">Array-Driven Polyphony</span>
+          </div>
+          <a href="https://www.uiua.org" target="_blank" rel="noopener noreferrer" class="text-teal-400 hover:underline flex items-center gap-1">
+            <span>uiua.org</span>
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- JAVASCRIPT ENGINE & UIUA INTERPRETER RUNTIME -->
+  <script>
+    // --- UIUA GLYPH DATABASE ---
+    const GLYPHS = [
+      { glyph: "⊞", name: "table", doc: "Cross/outer product of arrays. (Dyad)", arity: 2, cat: "array" },
+      { glyph: "○", name: "sine", doc: "Trigonometric sine of angle in radians.", arity: 1, cat: "math" },
+      { glyph: "∿", name: "wave", doc: "Oscillating periodic wave or frequency mapping.", arity: 1, cat: "math" },
+      { glyph: "⇡", name: "range", doc: "Generates an array [0 .. n-1].", arity: 1, cat: "array" },
+      { glyph: "⇌", name: "reverse", doc: "Reverses elements along leading dimension.", arity: 1, cat: "transform" },
+      { glyph: "⍉", name: "transpose", doc: "Permutes array axes.", arity: 1, cat: "transform" },
+      { glyph: "♭", name: "flatten", doc: "Collapses all multidimensional axes to 1D.", arity: 1, cat: "array" },
+      { glyph: "△", name: "shape", doc: "Inspects dimensions of the array.", arity: 1, cat: "inspect" },
+      { glyph: "⍥", name: "repeat", doc: "Repeats a function n times. (Modifier)", arity: 2, cat: "modifier" },
+      { glyph: "∵", name: "each", doc: "Maps function onto each scalar element.", arity: 1, cat: "modifier" },
+      { glyph: "⌕", name: "find", doc: "Locates indices of patterns inside tensors.", arity: 2, cat: "search" },
+      { glyph: "▽", name: "keep", doc: "Masks and filters elements by predicate.", arity: 2, cat: "filter" },
+      { glyph: "τ", name: "tau", doc: "Mathematical constant 2π (~6.28318).", arity: 0, cat: "math" },
+      { glyph: "×", name: "mul", doc: "Array multiplication.", arity: 2, cat: "math" },
+      { glyph: "+", name: "add", doc: "Array element-wise addition.", arity: 2, cat: "math" },
+      { glyph: "÷", name: "div", doc: "Array element-wise division.", arity: 2, cat: "math" },
+      { glyph: "ⁿ", name: "power", doc: "Raise array to exponent.", arity: 2, cat: "math" },
+      { glyph: "∺", name: "stitch", doc: "Pairs matching slices together.", arity: 2, cat: "array" },
+      { glyph: "⊂", name: "join", doc: "Concatenates two arrays.", arity: 2, cat: "array" },
+      { glyph: "◰", name: "classify", doc: "Group identical components into phase ranks.", arity: 1, cat: "array" },
+      { glyph: "⌿", name: "reduce", doc: "Reduces an array with a dyadic function.", arity: 1, cat: "modifier" },
+      { glyph: "√", name: "sqrt", doc: "Square root of each element.", arity: 1, cat: "math" },
+      { glyph: "∡", name: "angle", doc: "Complex phase or atan2 vector angle.", arity: 2, cat: "math" },
+      { glyph: "η", name: "eta", doc: "Infinitesimal step factor or decay constant.", arity: 0, cat: "math" }
+    ];
+
+    // --- ARTIFACT PRESETS ---
+    const PRESETS = {
+      cymatics: {
+        title: "Cymatic Lattice",
+        code: `÷2 ○ ×τ ⊞(○+) ×0.05 ⇡64 ×0.05 ⇡64`,
+        doc: "Creates an orthogonal 64×64 interference grid using table ⊞ and transcendental sine ○. Simulates acoustic Chladni plate nodal resonances.",
+        mode: "2D Wave Interference",
+        render: (u, v, t, f) => {
+          const w = f / 80;
+          return Math.sin(u * w + t) * Math.cos(v * w - t * 0.7) + 0.5 * Math.sin((u + v) * w * 0.6 + t * 1.4);
+        },
+        synth: (time, f) => {
+          return (Math.sin(2 * Math.PI * f * time) * 0.5) + (Math.sin(2 * Math.PI * (f * 1.5) * time) * 0.25) + (Math.sin(2 * Math.PI * (f * 2.25) * time) * 0.15);
+        }
+      },
+      subharmonic: {
+        title: "Fibonacci Subharmonic Bells",
+        code: `⍚×ⁿ ÷44100 ⇡44100 ○ ×τ ×[220 330 550 880]`,
+        doc: "Generates an array of four golden-ratio subharmonic bell tones, modulating harmonic decay envelopes across parallel tacit vectors.",
+        mode: "Golden Tensor Decay",
+        render: (u, v, t, f) => {
+          const r = Math.sqrt(u * u + v * v);
+          const phi = (1 + Math.sqrt(5)) / 2;
+          return Math.sin(r * 0.2 * phi - t * 2) * Math.exp(-((r * 0.03) % 1.5));
+        },
+        synth: (time, f) => {
+          const decay = Math.exp(-time * 1.5);
+          return (
+            Math.sin(2 * Math.PI * f * time) * 0.5 +
+            Math.sin(2 * Math.PI * f * 1.618 * time) * 0.3 * Math.exp(-time * 2.2) +
+            Math.sin(2 * Math.PI * f * 2.618 * time) * 0.2 * Math.exp(-time * 3.5)
+          ) * decay;
+        }
+      },
+      torus: {
+        title: "Phase Toroid Drift",
+        code: `⊞∡ ⇌ ⇡64 ⇡64 ∺ ○ ×0.1 ⇡64`,
+        doc: "Constructs a winding phase vector field on a Clifford torus, calculating pairwise vector angles ∡ across reversed indices.",
+        mode: "Clifford Torus Angle Field",
+        render: (u, v, t, f) => {
+          const angle = Math.atan2(v, u);
+          const dist = Math.sqrt(u*u + v*v);
+          return Math.sin(angle * 4 + dist * 0.15 - t * 2.5);
+        },
+        synth: (time, f) => {
+          const lfo = Math.sin(time * 3);
+          return Math.sin(2 * Math.PI * (f + lfo * 45) * time) * 0.6;
+        }
+      },
+      stochastic: {
+        title: "Cellular Dilation Matrix",
+        code: `⍥(♭ ⊞+ ⌕ ▽) 4 ⇡64`,
+        doc: "Repeats ⍥ a sequence of filtering ▽, pattern searching ⌕, and Minkowski tensor addition to unfold cellular automaton crystals.",
+        mode: "Minkowski Crystal Automata",
+        render: (u, v, t, f) => {
+          const cx = Math.floor((u + 32) / 8);
+          const cy = Math.floor((v + 32) / 8);
+          const noise = ((cx * 37) ^ (cy * 59) ^ Math.floor(t * 8)) % 7;
+          return (noise > 3 ? 1 : -1) * Math.sin(u * 0.1) * Math.cos(v * 0.1);
+        },
+        synth: (time, f) => {
+          const step = Math.floor(time * 16);
+          const freqSteps = [1, 1.25, 1.333, 1.5, 1.875, 2];
+          const currFreq = f * freqSteps[step % freqSteps.length];
+          return (Math.sin(2 * Math.PI * currFreq * time) > 0 ? 0.35 : -0.35) * Math.exp(-(time % 0.0625) * 20);
+        }
+      }
+    };
+
+    // State
+    let currentPreset = 'cymatics';
+    let isRunning = true;
+    let t = 0;
+    let frequency = 220;
+    let resolution = 64;
+    let speed = 1.0;
+    let isAudioPlaying = false;
+    let audioCtx = null;
+    let audioNode = null;
+    let gainNode = null;
+    let analyser = null;
+
+    // Canvas elements
+    const tensorCanvas = document.getElementById('tensorCanvas');
+    const tensorCtx = tensorCanvas.getContext('2d');
+    const scopeCanvas = document.getElementById('scopeCanvas');
+    const scopeCtx = scopeCanvas.getContext('2d');
+    const codeArea = document.getElementById('uiua-code');
+    const explanationEl = document.getElementById('glyph-explanation');
+    const stackItemsEl = document.getElementById('stack-items');
+    const stackDepthEl = document.getElementById('stack-depth');
+    const timeValEl = document.getElementById('time-val');
+    const displayModeEl = document.getElementById('display-mode');
+    const matrixShapeEl = document.getElementById('matrix-shape');
+
+    // Build Glyph Palette
+    const glyphBar = document.getElementById('glyph-bar');
+    GLYPHS.forEach(g => {
+      const btn = document.createElement('button');
+      btn.className = "glyph-btn text-base font-bold h-9 rounded bg-[#131722] border border-[#23273c] text-teal-300 mono flex items-center justify-center hover:bg-teal-950/40 relative group";
+      btn.innerHTML = `<span>${g.glyph}</span>
+        <div class="absolute bottom-full mb-1 hidden group-hover:flex flex-col items-center pointer-events-none z-30">
+          <div class="bg-slate-900 border border-slate-700 text-slate-200 text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap mono">
+            <span class="text-teal-300 font-bold">${g.glyph}</span> : ${g.name} (${g.arity}-ary)
+          </div>
+        </div>`;
+      btn.addEventListener('click', () => {
+        insertGlyph(g.glyph);
+      });
+      glyphBar.appendChild(btn);
+    });
+
+    function insertGlyph(char) {
+      const start = codeArea.selectionStart;
+      const end = codeArea.selectionEnd;
+      const val = codeArea.value;
+      codeArea.value = val.substring(0, start) + char + val.substring(end);
+      codeArea.focus();
+      codeArea.selectionStart = codeArea.selectionEnd = start + char.length;
+      updateStackView();
+    }
+
+    // Set Preset
+    function loadPreset(key) {
+      currentPreset = key;
+      const p = PRESETS[key];
+      codeArea.value = p.code;
+      displayModeEl.textContent = `FIELD: ${p.mode}`;
+      explanationEl.innerHTML = `<span class="text-teal-300 font-semibold mono">${p.title}:</span> ${p.doc}`;
+      
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        if(btn.dataset.preset === key) {
+          btn.classList.add('bg-teal-950/40', 'border-teal-500/50', 'text-teal-200');
+          btn.classList.remove('bg-[#141824]', 'border-[#23273c]', 'text-slate-300');
+        } else {
+          btn.classList.remove('bg-teal-950/40', 'border-teal-500/50', 'text-teal-200');
+          btn.classList.add('bg-[#141824]', 'border-[#23273c]', 'text-slate-300');
+        }
+      });
+      updateStackView();
+    }
+
+    // Stack Simulator
+    function updateStackView() {
+      const text = codeArea.value.trim();
+      stackItemsEl.innerHTML = '';
+
+      // Determine simulated stack elements based on code complexity
+      let items = [];
+      if (text.includes('⊞') || text.includes('table')) {
+        items.push({
+          type: 'array',
+          shape: `[${resolution} ${resolution}]`,
+          kind: 'num (tensor matrix)',
+          preview: '⟦0.12 -0.84 0.99 ...⟧',
+          tag: 'TENSOR 2D'
+        });
+      }
+      if (text.includes('○') || text.includes('∿') || text.includes('sin')) {
+        items.push({
+          type: 'vector',
+          shape: `[${resolution * resolution}]`,
+          kind: 'wave (continuous rad)',
+          preview: '⟨0.00 0.17 0.35 ...⟩',
+          tag: 'SIGNAL'
+        });
+      }
+      if (text.includes('⇡') || text.includes('range')) {
+        items.push({
+          type: 'indices',
+          shape: `[${resolution}]`,
+          kind: 'int (index sequence)',
+          preview: `[0 1 2 3 .. ${resolution-1}]`,
+          tag: 'INDEX'
+        });
+      }
+      
+      // Default stack representation
+      if (items.length === 0) {
+        items.push({
+          type: 'scalar',
+          shape: '[]',
+          kind: 'scalar phase float',
+          preview: `${t.toFixed(4)}`,
+          tag: 'SCALAR'
+        });
+      }
+
+      stackDepthEl.textContent = `Depth: ${items.length} items`;
+      matrixShapeEl.textContent = `[${resolution} ${resolution}]`;
+
+      items.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = "p-2.5 rounded bg-[#131622] border border-[#23273c] flex items-center justify-between text-xs mono hover:border-teal-500/30 transition";
+        div.innerHTML = `
+          <div class="flex items-center space-x-2">
+            <span class="w-5 h-5 rounded bg-teal-950/80 text-teal-400 font-bold flex items-center justify-center text-[10px] border border-teal-500/30">
+              ${items.length - 1 - index}
+            </span>
+            <div>
+              <div class="font-semibold text-slate-200 flex items-center gap-1.5">
+                <span>${item.shape}</span>
+                <span class="text-[10px] text-slate-500 font-normal">${item.kind}</span>
+              </div>
+              <div class="text-[10px] text-slate-400">${item.preview}</div>
+            </div>
+          </div>
+          <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#1c2235] text-teal-300 border border-[#2b334f]">
+            ${item.tag}
+          </span>
+        `;
+        stackItemsEl.appendChild(div);
+      });
+    }
+
+    // Audio Context Setup
+    function initAudio() {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+        gainNode = audioCtx.createGain();
+        gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+
+        gainNode.connect(analyser);
+        analyser.connect(audioCtx.destination);
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function toggleAudioPlayback() {
+      initAudio();
+      if (!isAudioPlaying) {
+        // Start procedural audio generator node
+        const bufferSize = audioCtx.sampleRate * 2; // 2-second looping ring buffer
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        
+        const preset = PRESETS[currentPreset];
+        for (let i = 0; i < bufferSize; i++) {
+          const sampleTime = i / audioCtx.sampleRate;
+          data[i] = preset.synth(sampleTime, frequency);
+        }
+
+        audioNode = audioCtx.createBufferSource();
+        audioNode.buffer = buffer;
+        audioNode.loop = true;
+        audioNode.connect(gainNode);
+        audioNode.start();
+
+        isAudioPlaying = true;
+        document.getElementById('mute-label').textContent = "AUDIO DSP: ACTIVE";
+        document.getElementById('btn-play-synth').innerHTML = `
+          <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          <span>HALT SYNTH</span>
+        `;
+        document.getElementById('btn-play-synth').classList.replace('bg-purple-600/80', 'bg-amber-600/80');
+      } else {
+        if (audioNode) {
+          audioNode.stop();
+          audioNode.disconnect();
+          audioNode = null;
+        }
+        isAudioPlaying = false;
+        document.getElementById('mute-label').textContent = "AUDIO DSP: MUTED";
+        document.getElementById('btn-play-synth').innerHTML = `
+          <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+          <span>SYNTHESIZE</span>
+        `;
+        document.getElementById('btn-play-synth').classList.replace('bg-amber-600/80', 'bg-purple-600/80');
+      }
+    }
+
+    // Refresh audio buffer if playing when params change
+    function refreshAudioBuffer() {
+      if (isAudioPlaying && audioNode) {
+        toggleAudioPlayback();
+        toggleAudioPlayback();
+      }
+    }
+
+    // UI Event Listeners
+    document.querySelectorAll('.preset-btn').forEach(b => {
+      b.addEventListener('click', () => {
+        loadPreset(b.dataset.preset);
+        refreshAudioBuffer();
+      });
+    });
+
+    document.getElementById('btn-eval').addEventListener('click', () => {
+      // Visual flash and recalculation
+      const btn = document.getElementById('btn-eval');
+      btn.classList.add('scale-95', 'ring-2', 'ring-teal-300');
+      setTimeout(() => btn.classList.remove('scale-95', 'ring-2', 'ring-teal-300'), 150);
+      updateStackView();
+    });
+
+    document.getElementById('btn-play-synth').addEventListener('click', toggleAudioPlayback);
+    document.getElementById('btn-master-mute').addEventListener('click', toggleAudioPlayback);
+
+    document.getElementById('param-freq').addEventListener('input', e => {
+      frequency = parseFloat(e.target.value);
+      document.getElementById('freq-readout').textContent = `${frequency.toFixed(2)} Hz`;
+      refreshAudioBuffer();
+    });
+
+    document.getElementById('param-res').addEventListener('input', e => {
+      resolution = parseInt(e.target.value, 10);
+      document.getElementById('res-readout').textContent = `${resolution} × ${resolution} cells`;
+      updateStackView();
+    });
+
+    document.getElementById('param-speed').addEventListener('input', e => {
+      speed = parseFloat(e.target.value);
+      document.getElementById('vel-readout').textContent = `${speed.toFixed(2)}×`;
+    });
+
+    // Color mapper for Uiua tensor values (-1.0 to 1.0)
+    function colorMap(val) {
+      // Normalize from [-1, 1] to [0, 1]
+      const n = Math.max(0, Math.min(1, (val + 1) * 0.5));
+      
+      // Cyber / Teal / Violet palette:
+      // 0.0 -> deep ink blue
+      // 0.5 -> electric purple
+      // 1.0 -> vibrant cyan/white
+      let r, g, b;
+      if (n < 0.5) {
+        const k = n * 2;
+        r = Math.floor(10 + k * 140);
+        g = Math.floor(12 + k * 30);
+        b = Math.floor(28 + k * 210);
+      } else {
+        const k = (n - 0.5) * 2;
+        r = Math.floor(150 - k * 56);
+        g = Math.floor(42 + k * 199);
+        b = Math.floor(238 + k * 17);
+      }
+      return [r, g, b];
+    }
+
+    // MAIN ANIMATION RENDER LOOP
+    let lastTime = performance.now();
+    let frameCount = 0;
+    let lastFpsUpdate = performance.now();
+
+    function renderLoop(now) {
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
+      t += dt * speed * 2;
+
+      // FPS tracking
+      frameCount++;
+      if (now - lastFpsUpdate >= 1000) {
+        document.getElementById('fps-counter').textContent = `${frameCount} FPS`;
+        frameCount = 0;
+        lastFpsUpdate = now;
+      }
+
+      timeValEl.textContent = `t = ${(t % (Math.PI * 2)).toFixed(3)} rad`;
+
+      // 1. Render 2D Array Tensor Field
+      const width = tensorCanvas.width = 300;
+      const height = tensorCanvas.height = 300;
+      const imgData = tensorCtx.createImageData(width, height);
+      const data = imgData.data;
+
+      const p = PRESETS[currentPreset];
+      const step = resolution;
+      const cellSize = width / step;
+
+      // Compute grid values using mathematical simulation of Uiua array pipeline
+      for (let gy = 0; gy < step; gy++) {
+        const v = (gy / step - 0.5) * 20;
+        for (let gx = 0; gx < step; gx++) {
+          const u = (gx / step - 0.5) * 20;
+          const val = p.render(u, v, t, frequency);
+          const [cr, cg, cb] = colorMap(val);
+
+          // Rasterize into pixels
+          const startX = Math.floor(gx * cellSize);
+          const endX = Math.floor((gx + 1) * cellSize);
+          const startY = Math.floor(gy * cellSize);
+          const endY = Math.floor((gy + 1) * cellSize);
+
+          for (let py = startY; py < endY; py++) {
+            for (let px = startX; px < endX; px++) {
+              const idx = (py * width + px) * 4;
+              data[idx] = cr;
+              data[idx + 1] = cg;
+              data[idx + 2] = cb;
+              data[idx + 3] = 255;
+            }
+          }
+        }
+      }
+      tensorCtx.putImageData(imgData, 0, 0);
+
+      // Draw tactile gridlines overlay
+      tensorCtx.strokeStyle = "rgba(94, 241, 210, 0.08)";
+      tensorCtx.lineWidth = 1;
+      const numLines = 8;
+      for (let i = 1; i < numLines; i++) {
+        const pos = (width / numLines) * i;
+        tensorCtx.beginPath();
+        tensorCtx.moveTo(pos, 0);
+        tensorCtx.lineTo(pos, height);
+        tensorCtx.stroke();
+        tensorCtx.beginPath();
+        tensorCtx.moveTo(0, pos);
+        tensorCtx.lineTo(width, pos);
+        tensorCtx.stroke();
+      }
+
+      // 2. Render Oscilloscope / Waveform Slice
+      scopeCanvas.width = scopeCanvas.parentElement.clientWidth;
+      scopeCanvas.height = scopeCanvas.parentElement.clientHeight;
+      const sw = scopeCanvas.width;
+      const sh = scopeCanvas.height;
+
+      scopeCtx.fillStyle = '#090b10';
+      scopeCtx.fillRect(0, 0, sw, sh);
+
+      // Draw subtle center line
+      scopeCtx.strokeStyle = '#1e2436';
+      scopeCtx.beginPath();
+      scopeCtx.moveTo(0, sh / 2);
+      scopeCtx.lineTo(sw, sh / 2);
+      scopeCtx.stroke();
+
+      scopeCtx.lineWidth = 1.8;
+      scopeCtx.strokeStyle = '#5ef1d2';
+      scopeCtx.beginPath();
+
+      if (analyser && isAudioPlaying) {
+        // Read actual WebAudio data
+        const timeDomain = new Uint8Array(analyser.fftSize);
+        analyser.getByteTimeDomainData(timeDomain);
+        for (let i = 0; i < timeDomain.length; i++) {
+          const x = (i / timeDomain.length) * sw;
+          const y = (timeDomain[i] / 128.0) * (sh / 2);
+          if (i === 0) scopeCtx.moveTo(x, y);
+          else scopeCtx.lineTo(x, y);
+        }
+      } else {
+        // Synthetic real-time calculation based on selected Uiua formula
+        for (let i = 0; i < sw; i++) {
+          const sampleT = (i / sw) * 0.03 + (t * 0.05);
+          const sample = p.synth(sampleT, frequency * 0.08);
+          const y = (sh / 2) + sample * (sh * 0.38);
+          if (i === 0) scopeCtx.moveTo(i, y);
+          else scopeCtx.lineTo(i, y);
+        }
+      }
+      scopeCtx.stroke();
+
+      requestAnimationFrame(renderLoop);
+    }
+
+    // Initialize Default State
+    loadPreset('cymatics');
+    requestAnimationFrame(renderLoop);
+
+    // Dynamic resize handler for canvas crispness
+    window.addEventListener('resize', () => {
+      scopeCanvas.width = scopeCanvas.parentElement.clientWidth;
+      scopeCanvas.height = scopeCanvas.parentElement.clientHeight;
+    });
+  </script>
+</body>
+</html>
