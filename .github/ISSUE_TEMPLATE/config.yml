@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discussion
+    url: https://github.com/zazieproductions/UIUA-RESONANCE-LAB/discussions
+    about: Ask questions, share presets, or discuss ideas that aren't bugs or feature requests
+  - name: 📖 Uiua Language Reference
+    url: https://www.uiua.org/docs
+    about: Learn about the real array language that inspires this project
